@@ -12,7 +12,7 @@ BOOTLOADER =	gnu-efi/$(ARCH)/bootloader/main.efi
 ASMFLAGS =		-f elf64
 CFLAGS =		-m64 -c -O2 -Wall -Wextra -ffreestanding -fshort-wchar -mno-red-zone
 LDFLAGS =		-m elf_$(ARCH) -T $(DATA_DIR)/linker.ld -Bsymbolic -nostdlib
-QEMUFLAGS =		-m 512M -cpu qemu64 -drive if=pflash,format=raw,unit=0,file="$(DATA_DIR)/OVMF_CODE.fd",readonly=on \
+QEMUFLAGS =		-m 256M -cpu qemu64 -drive if=pflash,format=raw,unit=0,file="$(DATA_DIR)/OVMF_CODE.fd",readonly=on \
 				-drive if=pflash,format=raw,unit=1,file="$(DATA_DIR)/OVMF_VARS.fd",readonly=on -net none
 
 ASM_SOURCES =	$(wildcard $(SRC_DIR)/asm/*.asm)

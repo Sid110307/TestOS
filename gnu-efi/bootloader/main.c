@@ -31,6 +31,8 @@ typedef struct
 {
     PSF1Font *font;
     Framebuffer *framebuffer;
+    EFI_MEMORY_DESCRIPTOR *memoryMap;
+    UINTN memoryMapSize, memoryMapDescriptorSize;
 } BootInfo;
 
 Framebuffer framebuffer;
@@ -190,10 +192,26 @@ EFI_STATUS efi_main(EFI_HANDLE imageHandle, EFI_SYSTEM_TABLE *systemTable)
     framebuffer = *initializeGOP();
     if (framebuffer.bufferSize == 0) Print(L"Could not initialize GOP!\r\n");
 
-    BootInfo bootInfo;
-    bootInfo.font = font;
-    bootInfo.framebuffer = &framebuffer;
+    EFI_MEMORY_DESCRIPTOR *memoryMap = NULL;
+    UINTN mapSize, mapKey, descriptorSize;
+    {
+        UINT32 descriptorVersion;
 
+        systemTable->BootServices->GetMemoryMap(&mapSize, memoryMap, &mapKey, &descriptorSize, &descriptorVersion);
+        systemTable->BootServices->AllocatePool(EfiLoaderData, mapSize, (void **) &memoryMap);
+        systemTable->BootServices->GetMemoryMap(&mapSize, memoryMap, &mapKey, &descriptorSize, &descriptorVersion);
+    }
+
+    BootInfo bootInfo = {
+            .font = font,
+            .framebuffer = &framebuffer,
+            .memoryMap = memoryMap,
+            .memoryMapSize = mapSize,
+            .memoryMapDescriptorSize = descriptorSize
+    };
+
+    systemTable->BootServices->ExitBootServices(imageHandle, mapKey);
     ((__attribute__((sysv_abi)) int (*)(BootInfo *)) header.e_entry)(&bootInfo);
+
     return EFI_SUCCESS;
 }

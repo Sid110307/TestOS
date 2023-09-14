@@ -1,5 +1,7 @@
 #pragma once
 
+typedef unsigned long long size_t;
+
 enum Colors
 {
     Black = 0x000000,

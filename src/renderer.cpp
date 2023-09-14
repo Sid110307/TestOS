@@ -1,12 +1,9 @@
 #include "include/renderer.h"
 
 Renderer::Renderer(Framebuffer *framebuffer, PSF1Font *font)
-{
-    this->framebuffer = framebuffer;
-    this->font = font;
-}
+        : cursorPosition({0, 0}), framebuffer(framebuffer), font(font) {}
 
-void Renderer::putPixel(unsigned int x, unsigned int y, Colors color)
+void Renderer::putPixel(unsigned int x, unsigned int y, unsigned int color)
 {
     if (x >= framebuffer->width || y >= framebuffer->height) return;
 
@@ -14,98 +11,121 @@ void Renderer::putPixel(unsigned int x, unsigned int y, Colors color)
     *pixel = color;
 }
 
-void Renderer::putChar(unsigned int x, unsigned int y, Colors color, char c)
+void Renderer::putChar(char c, unsigned int color)
 {
-    unsigned char *glyph = static_cast<unsigned char *>(font->glyphBuffer) + (c * font->fontHeader->charSize);
-
-    for (unsigned int i = 0; i < font->fontHeader->charSize; ++i)
+    switch (c)
     {
-        for (unsigned int j = 0; j < 8; ++j) if ((*glyph & 0B10000000 >> j) > 0) putPixel(x + j, y + i, color);
-        glyph++;
+        case '\n':
+            cursorPosition.x = 0;
+            cursorPosition.y += font->fontHeader->charSize;
+            break;
+        case '\r':
+            cursorPosition.x = 0;
+            break;
+        case '\t':
+            cursorPosition.x += INDENT * 8;
+            break;
+        case '\b':
+            cursorPosition.x -= 8;
+            break;
+        default:
+        {
+            unsigned char *glyph = static_cast<unsigned char *>(font->glyphBuffer) + (c * font->fontHeader->charSize);
+
+            for (unsigned int i = 0; i < font->fontHeader->charSize; ++i)
+            {
+                for (unsigned int j = 0; j < 8; ++j)
+                    if ((*glyph & 0B10000000 >> j) > 0) putPixel(cursorPosition.x + j, cursorPosition.y + i, color);
+                glyph++;
+            }
+
+            cursorPosition.x += 8;
+            break;
+        }
+    }
+
+    if (cursorPosition.x >= framebuffer->width)
+    {
+        cursorPosition.x = 0;
+        cursorPosition.y += font->fontHeader->charSize;
     }
 }
 
-void Renderer::putString(unsigned int x, unsigned int y, Colors color, const char *str)
+void Renderer::putString(const char *str, unsigned int color)
 {
-    unsigned int xOffset = 0;
-
     while (*str != '\0')
     {
-        putChar(x + xOffset, y, color, *str);
-
-        xOffset += 8;
+        putChar(*str, color);
         str++;
     }
 }
 
-void Renderer::putNumber(unsigned int x, unsigned int y, Colors color, unsigned long long n)
+void Renderer::putNumber(unsigned long long n, unsigned int color)
 {
-    unsigned int xOffset = 0;
-
     if (n == 0)
     {
-        putChar(x, y, color, '0');
+        putChar('0', color);
         return;
     }
 
     while (n > 0)
     {
-        putChar(x + xOffset, y, color, static_cast<char>(n % 10 + '0'));
-
-        xOffset += 8;
+        putChar(static_cast<char>(n % 10 + '0'), color);
         n /= 10;
     }
 }
 
-void Renderer::clear(Colors color)
+void Renderer::clear(unsigned int color)
 {
     for (unsigned int y = 0; y < framebuffer->height; ++y)
         for (unsigned int x = 0; x < framebuffer->width; ++x) putPixel(x, y, color);
 }
 
+// TODO: Only delay the renderer, not the whole system
 void Renderer::delay(unsigned int ms)
 {
-    for (unsigned int i = 0; i < ms; ++i) for (unsigned int j = 0; j < 1000000; ++j) __asm__("nop");
+    for (unsigned int i = 0; i < ms; ++i) for (unsigned int j = 0; j < 500000; ++j) asm volatile("nop");
 }
 
-void Renderer::drawRect(unsigned int x, unsigned int y, unsigned int width, unsigned int height, Colors color)
+void Renderer::drawRect(unsigned int width, unsigned int height, unsigned int color)
 {
     for (unsigned int i = 0; i < width; ++i)
     {
-        putPixel(x + i, y, color);
-        putPixel(x + i, y + height - 1, color);
+        putPixel(cursorPosition.x + i, cursorPosition.y, color);
+        putPixel(cursorPosition.x + i, cursorPosition.y + height - 1, color);
     }
 
     for (unsigned int i = 0; i < height; ++i)
     {
-        putPixel(x, y + i, color);
-        putPixel(x + width - 1, y + i, color);
+        putPixel(cursorPosition.x, cursorPosition.y + i, color);
+        putPixel(cursorPosition.x + width - 1, cursorPosition.y + i, color);
     }
 }
 
-void Renderer::fillRect(unsigned int x, unsigned int y, unsigned int width, unsigned int height, Colors color)
+void Renderer::fillRect(unsigned int width, unsigned int height, unsigned int color)
 {
-    for (unsigned int i = 0; i < height; ++i) for (unsigned int j = 0; j < width; ++j) putPixel(x + j, y + i, color);
+    for (unsigned int i = 0; i < height; ++i)
+        for (unsigned int j = 0; j < width; ++j) putPixel(cursorPosition.x + j, cursorPosition.y + i, color);
 }
 
-void Renderer::drawLine(unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1, Colors color)
+void Renderer::drawLine(unsigned int destX, unsigned int destY, unsigned int color)
 {
-    int dx = static_cast<int>(x1 - x0), dy = static_cast<int>(y1 - y0), temp;
+    int dx = static_cast<int>(destX - cursorPosition.x), dy = static_cast<int>(destY - cursorPosition.y), temp;
 
     if (dx < 0)
     {
-        temp = static_cast<int>(x0);
-        x0 = x1;
-        x1 = temp;
-        y0 = y1;
+        temp = static_cast<int>(cursorPosition.x);
+        cursorPosition.x = destX;
+        destX = temp;
+        cursorPosition.y = destY;
 
         dx = -dx;
         dy = -dy;
     }
 
-    int x = static_cast<int>(x0), y = static_cast<int>(y0), p = 2 * dy - dx;
+    int x = static_cast<int>(cursorPosition.x), y = static_cast<int>(cursorPosition.y), p = 2 * dy - dx;
 
-    while (x <= static_cast<int>(x1))
+    while (x <= static_cast<int>(destX))
     {
         putPixel(x, y, color);
 
@@ -119,20 +139,20 @@ void Renderer::drawLine(unsigned int x0, unsigned int y0, unsigned int x1, unsig
     }
 }
 
-void Renderer::drawCircle(unsigned int x, unsigned int y, unsigned int radius, Colors color)
+void Renderer::drawCircle(unsigned int radius, unsigned int color)
 {
     int x0 = 0, y0 = static_cast<int>(radius), d = 3 - 2 * static_cast<int>(radius);
 
     while (x0 <= y0)
     {
-        putPixel(x + x0, y + y0, color);
-        putPixel(x + x0, y - y0, color);
-        putPixel(x - x0, y + y0, color);
-        putPixel(x - x0, y - y0, color);
-        putPixel(x + y0, y + x0, color);
-        putPixel(x + y0, y - x0, color);
-        putPixel(x - y0, y + x0, color);
-        putPixel(x - y0, y - x0, color);
+        putPixel(cursorPosition.x + x0, cursorPosition.y + y0, color);
+        putPixel(cursorPosition.x + x0, cursorPosition.y - y0, color);
+        putPixel(cursorPosition.x - x0, cursorPosition.y + y0, color);
+        putPixel(cursorPosition.x - x0, cursorPosition.y - y0, color);
+        putPixel(cursorPosition.x + y0, cursorPosition.y + x0, color);
+        putPixel(cursorPosition.x + y0, cursorPosition.y - x0, color);
+        putPixel(cursorPosition.x - y0, cursorPosition.y + x0, color);
+        putPixel(cursorPosition.x - y0, cursorPosition.y - x0, color);
 
         if (d < 0) d += 4 * x0 + 6;
         else
@@ -145,16 +165,20 @@ void Renderer::drawCircle(unsigned int x, unsigned int y, unsigned int radius, C
     }
 }
 
-void Renderer::fillCircle(unsigned int x, unsigned int y, unsigned int radius, Colors color)
+void Renderer::fillCircle(unsigned int radius, unsigned int color)
 {
     int x0 = 0, y0 = static_cast<int>(radius), d = 3 - 2 * static_cast<int>(radius);
 
     while (x0 <= y0)
     {
-        drawLine(x - x0, y + y0, x + x0, y + y0, color);
-        drawLine(x - x0, y - y0, x + x0, y - y0, color);
-        drawLine(x - y0, y + x0, x + y0, y + x0, color);
-        drawLine(x - y0, y - x0, x + y0, y - x0, color);
+        drawLine(cursorPosition.x - x0, cursorPosition.y + y0, color);
+        drawLine(cursorPosition.x - x0, cursorPosition.y - y0, color);
+        drawLine(cursorPosition.x + x0, cursorPosition.y + y0, color);
+        drawLine(cursorPosition.x + x0, cursorPosition.y - y0, color);
+        drawLine(cursorPosition.x - y0, cursorPosition.y + x0, color);
+        drawLine(cursorPosition.x - y0, cursorPosition.y - x0, color);
+        drawLine(cursorPosition.x + y0, cursorPosition.y + x0, color);
+        drawLine(cursorPosition.x + y0, cursorPosition.y - x0, color);
 
         if (d < 0) d += 4 * x0 + 6;
         else

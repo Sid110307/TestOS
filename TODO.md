@@ -5,10 +5,8 @@
 | **Feature**             | **Description**                                                                   |
 |:------------------------|:----------------------------------------------------------------------------------|
 | **Interrupt Handling**  | Implement interrupt handlers for interrupts, including exceptions.                |
-| **Memory Management**   | Create a memory manager to allocate and deallocate memory efficiently.            |
-| **File System**         | Implement a basic file system for storing and accessing files on storage devices. |
-| **Console Output**      | Develop functions to print text and data to the screen (console).                 |
 | **Keyboard Input**      | Implement keyboard input handling for user interaction.                           |
+| **File System**         | Implement a basic file system for storing and accessing files on storage devices. |
 | **Basic Shell**         | Create a simple command-line interface (shell) for user interaction.              |
 | **Process Management**  | Implement a basic process scheduler and management system.                        |
 | **Multitasking**        | Enable multitasking to run multiple processes concurrently.                       |

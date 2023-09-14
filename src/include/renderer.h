@@ -1,6 +1,8 @@
 #pragma once
 
-#include "colors.h"
+#include "defs.h"
+
+#define INDENT 4
 
 typedef struct
 {
@@ -27,21 +29,26 @@ class Renderer
 public:
     Renderer(Framebuffer *framebuffer, PSF1Font *font);
 
-    void putPixel(unsigned int x, unsigned int y, Colors color);
-    void putChar(unsigned int x, unsigned int y, Colors color, char c);
-    void putString(unsigned int x, unsigned int y, Colors color, const char *str);
-    void putNumber(unsigned int x, unsigned int y, Colors color, unsigned long long n);
+    void putPixel(unsigned int x, unsigned int y, unsigned int color);
+    void putChar(char c, unsigned int color);
+    void putString(const char *str, unsigned int color);
+    void putNumber(unsigned long long n, unsigned int color);
 
-    void clear(Colors color);
+    void clear(unsigned int color);
     static void delay(unsigned int ms);
 
-    void drawRect(unsigned int x, unsigned int y, unsigned int width, unsigned int height, Colors color);
-    void fillRect(unsigned int x, unsigned int y, unsigned int width, unsigned int height, Colors color);
+    void drawRect(unsigned int width, unsigned int height, unsigned int color);
+    void fillRect(unsigned int width, unsigned int height, unsigned int color);
 
-    void drawLine(unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1, Colors color);
+    void drawLine(unsigned int destX, unsigned int destY, unsigned int color);
 
-    void drawCircle(unsigned int x, unsigned int y, unsigned int radius, Colors color);
-    void fillCircle(unsigned int x, unsigned int y, unsigned int radius, Colors color);
+    void drawCircle(unsigned int radius, unsigned int color);
+    void fillCircle(unsigned int radius, unsigned int color);
+
+    struct CursorPosition
+    {
+        unsigned int x, y;
+    } cursorPosition;
 
 private:
     Framebuffer *framebuffer;

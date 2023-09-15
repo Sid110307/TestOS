@@ -60,7 +60,7 @@ void Renderer::putString(const char *str, unsigned int color)
     }
 }
 
-void Renderer::putNumber(unsigned long long n, unsigned int color)
+void Renderer::putNumber(size_t n, unsigned int color)
 {
     if (n == 0)
     {

@@ -32,7 +32,7 @@ public:
     void putPixel(unsigned int x, unsigned int y, unsigned int color);
     void putChar(char c, unsigned int color);
     void putString(const char *str, unsigned int color);
-    void putNumber(unsigned long long n, unsigned int color);
+    void putNumber(size_t n, unsigned int color);
 
     void clear(unsigned int color);
     static void delay(unsigned int ms);

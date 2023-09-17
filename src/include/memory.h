@@ -1,9 +1,9 @@
-// memory management
 #pragma once
 
 #include "defs.h"
 
 #define PAGE_SIZE 4096
+#define PAGE_TABLE_SIZE 512
 
 struct MemoryDescriptor
 {
@@ -60,3 +60,41 @@ private:
     size_t freeMemory, usedMemory, reservedMemory, bitmapIndex;
     static bool initialized;
 };
+
+struct PageDirectoryEntry
+{
+    bool present: 1;
+    bool writable: 1;
+    bool userAccessible: 1;
+    bool writeThrough: 1;
+    bool cacheDisabled: 1;
+    bool accessed: 1;
+    bool ignored: 1;
+    bool pageSize: 1;
+    bool ignored2: 1;
+    unsigned char available: 3;
+    size_t address: 52;
+};
+
+struct PageTable
+{
+    PageDirectoryEntry entries[PAGE_TABLE_SIZE];
+} __attribute__((aligned(PAGE_SIZE)));
+
+class PageMapIndexer
+{
+public:
+    size_t pageDirPtrTableIndex, pageDirTableIndex, pageTableIndex, pageIndex;
+    explicit PageMapIndexer(size_t virtualAddress);
+};
+
+class PageTableManager
+{
+public:
+    explicit PageTableManager(PageTable *address);
+    void mapMemory(void *virtualMemory, void *physicalMemory);
+private:
+    PageTable *address;
+};
+
+extern PageFrameAllocator globalAllocator;

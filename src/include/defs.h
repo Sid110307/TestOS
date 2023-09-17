@@ -46,26 +46,45 @@ struct Bitmap
     }
 };
 
-static char buffer[sizeof(size_t) * 8 + 1];
-static const char *toString(size_t value, size_t base = 10)
+namespace Memory
 {
-    size_t i = 0;
-    while (value > 0)
+    static inline void *memset(void *ptr, int value, size_t size)
     {
-        size_t digit = value % base;
+        for (size_t i = 0; i < size; ++i) reinterpret_cast<unsigned char *>(ptr)[i] = value;
+        return ptr;
+    }
 
-        buffer[i++] = static_cast<char>(digit < 10 ? '0' + digit : 'A' + digit - 10);
+    static inline void *memcpy(void *destination, const void *source, size_t size)
+    {
+        for (size_t i = 0; i < size; ++i)
+            reinterpret_cast<unsigned char *>(destination)[i] = reinterpret_cast<const unsigned char *>(source)[i];
+        return destination;
+    }
+
+    static inline int memcmp(const void *a, const void *b, size_t size)
+    {
+        for (size_t i = 0; i < size; ++i)
+        {
+            if (reinterpret_cast<const unsigned char *>(a)[i] > reinterpret_cast<const unsigned char *>(b)[i]) return 1;
+            else if (reinterpret_cast<const unsigned char *>(a)[i] < reinterpret_cast<const unsigned char *>(b)[i])
+                return -1;
+        }
+
+        return 0;
+    }
+}
+
+static char buffer[sizeof(size_t) * 8 + 1];
+[[maybe_unused]] static const char *toString(size_t value, size_t base = 10)
+{
+    char *ptr = &buffer[sizeof(buffer) - 1];
+    *ptr = '\0';
+
+    do
+    {
+        *--ptr = "0123456789ABCDEF"[value % base];
         value /= base;
-    }
+    } while (value != 0);
 
-    buffer[i] = '\0';
-    for (size_t j = 0; j < i / 2; ++j)
-    {
-        char temp = buffer[j];
-
-        buffer[j] = buffer[i - j - 1];
-        buffer[i - j - 1] = temp;
-    }
-
-    return buffer;
+    return ptr;
 }

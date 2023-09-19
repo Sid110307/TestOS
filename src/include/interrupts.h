@@ -2,6 +2,7 @@
 
 #include "defs.h"
 #include "renderer.h"
+#include "memory.h"
 
 struct IDTDescriptor
 {
@@ -19,27 +20,8 @@ struct IDTEntry
     size_t getOffset() const;
 };
 
-struct InterruptFrame
+namespace PortIO
 {
-    size_t instructionPointer, codeSegment;
-    size_t cpuFlags, stackPointer, stackSegment;
-};
-
-class InterruptManager
-{
-public:
-    static void initialize();
-    static void registerHandler(unsigned char interrupt, void (*handler)(InterruptFrame *frame));
-
-    static void enableInterrupts();
-    static void disableInterrupts();
-
-private:
-    static IDTEntry idt[IDT_SIZE];
-    static void (*handlers[IDT_SIZE])(InterruptFrame *frame);
-
-    static void outPort(unsigned short port, unsigned char data);
-    static unsigned char inPort(unsigned short port);
-
-    static void interruptHandler(InterruptFrame *frame);
+    void outPort(unsigned short port, unsigned char data);
+    unsigned char inPort(unsigned short port);
 };

@@ -1,6 +1,6 @@
 #include "include/renderer.h"
 
-Renderer globalRenderer = Renderer(nullptr, nullptr);
+Renderer *globalRenderer;
 Renderer::Renderer(Framebuffer *framebuffer, PSF1Font *font)
         : cursorPosition({0, 0}), framebuffer(framebuffer), font(font) {}
 
@@ -85,7 +85,7 @@ void Renderer::clear(unsigned int color)
 // TODO: Only delay the renderer, not the whole system
 void Renderer::delay(unsigned int ms)
 {
-    for (unsigned int i = 0; i < ms; ++i) for (unsigned int j = 0; j < 500000; ++j) asm volatile("nop");
+    for (unsigned int i = 0; i < ms; ++i) for (unsigned int j = 0; j < 500000; ++j) asm ("nop");
 }
 
 void Renderer::drawRect(unsigned int width, unsigned int height, unsigned int color)

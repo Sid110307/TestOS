@@ -53,4 +53,4 @@ private:
     PSF1Font *font;
 };
 
-extern Renderer globalRenderer;
+extern Renderer *globalRenderer;

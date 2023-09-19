@@ -4,7 +4,6 @@
 
 | **Feature**             | **Description**                                                                   |
 |:------------------------|:----------------------------------------------------------------------------------|
-| **Interrupt Handling**  | Implement interrupt handlers for interrupts, including exceptions.                |
 | **Keyboard Input**      | Implement keyboard input handling for user interaction.                           |
 | **File System**         | Implement a basic file system for storing and accessing files on storage devices. |
 | **Basic Shell**         | Create a simple command-line interface (shell) for user interaction.              |

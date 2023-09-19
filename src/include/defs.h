@@ -6,7 +6,7 @@ constexpr size_t FRAMEBUFFER_INDENT = 4;
 constexpr size_t PAGE_SIZE = 4096, PAGE_TABLE_SIZE = 512;
 constexpr size_t IDT_INTERRUPT_GATE = 0x8E, IDT_CALL_GATE = 0x8C, IDT_TRAP_GATE = 0x8F;
 constexpr size_t PIC1_COMMAND = 0x20, PIC1_DATA = 0x21, PIC2_COMMAND = 0xA0, PIC2_DATA = 0xA1, PIC_EOI = 0x20;
-constexpr size_t IRQ0 = 0x20, IRQ1 = 0x21, IRQ12 = 0x2C;
+constexpr size_t ICW1_ICW4 = 0x01, ICW1_INIT = 0x10, ICW4_8086 = 0x01;
 constexpr size_t IDT_SIZE = 256;
 constexpr size_t KERNEL_CS = 0x08;
 
@@ -90,7 +90,7 @@ namespace Memory
 }
 
 static char buffer[sizeof(size_t) * 8 + 1];
-[[maybe_unused]] static const char *toString(size_t value, size_t base = 10)
+[[maybe_unused]] __attribute__((no_caller_saved_registers)) static const char *toString(size_t value, size_t base = 10)
 {
     char *ptr = &buffer[sizeof(buffer) - 1];
     *ptr = '\0';

@@ -2,8 +2,6 @@
 
 #include "defs.h"
 
-#define INDENT 4
-
 typedef struct
 {
     unsigned char magic[2], mode, charSize;
@@ -54,3 +52,5 @@ private:
     Framebuffer *framebuffer;
     PSF1Font *font;
 };
+
+extern Renderer globalRenderer;

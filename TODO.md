@@ -23,10 +23,8 @@
 | **Graphics Support**    | Add graphics support if necessary (e.g., for GUI applications).                   |
 | **Power Management**    | Include power management features, like sleep and hibernation.                    |
 | **Debugging Tools**     | Create debugging tools and logs for troubleshooting.                              |
-| **Virtual Memory**      | Implement virtual memory management and paging.                                   |
 | **System Information**  | Develop functions to retrieve system information and statistics.                  |
 | **Security**            | Add security mechanisms to protect against common threats.                        |
-| **Resource Management** | Manage system resources like CPU, memory, and I/O efficiently.                    |
 | **The Sacred Ritual**   | Make it run DOOM.                                                                 |
 
 ## Programs to port

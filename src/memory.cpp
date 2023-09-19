@@ -40,12 +40,13 @@ void PageFrameAllocator::freePage(void *address)
     size_t index = reinterpret_cast<size_t>(address) / PAGE_SIZE;
 
     if (!pageBitmap[index]) return;
-    pageBitmap.set(index, false);
+    if (pageBitmap.set(index, false))
+    {
+        freeMemory += PAGE_SIZE;
+        usedMemory -= PAGE_SIZE;
 
-    freeMemory += PAGE_SIZE;
-    usedMemory -= PAGE_SIZE;
-
-    if (index < bitmapIndex) bitmapIndex = index;
+        if (index < bitmapIndex) bitmapIndex = index;
+    }
 }
 
 void PageFrameAllocator::freePages(void *address, size_t pageCount)
@@ -59,10 +60,11 @@ void PageFrameAllocator::lockPage(void *address)
     size_t index = reinterpret_cast<size_t>(address) / PAGE_SIZE;
 
     if (pageBitmap[index]) return;
-    pageBitmap.set(index, true);
-
-    freeMemory -= PAGE_SIZE;
-    usedMemory += PAGE_SIZE;
+    if (pageBitmap.set(index, true))
+    {
+        freeMemory -= PAGE_SIZE;
+        usedMemory += PAGE_SIZE;
+    }
 }
 
 void PageFrameAllocator::lockPages(void *address, size_t pageCount)
@@ -71,8 +73,9 @@ void PageFrameAllocator::lockPages(void *address, size_t pageCount)
         lockPage(reinterpret_cast<void *>(reinterpret_cast<size_t>(address) + i * PAGE_SIZE));
 }
 
-void *PageFrameAllocator::requestPage()
+void *PageFrameAllocator::requestPage(bool clear)
 {
+    if (clear) bitmapIndex = 0;
     for (; bitmapIndex < pageBitmap.size * 8; ++bitmapIndex)
     {
         if (pageBitmap[bitmapIndex]) continue;
@@ -115,10 +118,11 @@ void PageFrameAllocator::reservePage(void *address)
     size_t index = reinterpret_cast<size_t>(address) / PAGE_SIZE;
 
     if (pageBitmap[index]) return;
-    pageBitmap.set(index, true);
-
-    freeMemory -= PAGE_SIZE;
-    reservedMemory += PAGE_SIZE;
+    if (pageBitmap.set(index, true))
+    {
+        freeMemory -= PAGE_SIZE;
+        reservedMemory += PAGE_SIZE;
+    }
 }
 
 void PageFrameAllocator::reservePages(void *address, size_t pageCount)
@@ -132,12 +136,13 @@ void PageFrameAllocator::unreservePage(void *address)
     size_t index = reinterpret_cast<size_t>(address) / PAGE_SIZE;
 
     if (!pageBitmap[index]) return;
-    pageBitmap.set(index, false);
+    if (pageBitmap.set(index, false))
+    {
+        freeMemory += PAGE_SIZE;
+        reservedMemory -= PAGE_SIZE;
 
-    freeMemory += PAGE_SIZE;
-    reservedMemory -= PAGE_SIZE;
-
-    if (index < bitmapIndex) bitmapIndex = index;
+        if (index < bitmapIndex) bitmapIndex = index;
+    }
 }
 
 void PageFrameAllocator::unreservePages(void *address, size_t pageCount)
@@ -146,16 +151,28 @@ void PageFrameAllocator::unreservePages(void *address, size_t pageCount)
         unreservePage(reinterpret_cast<void *>(reinterpret_cast<size_t>(address) + i * PAGE_SIZE));
 }
 
+void PageDirectoryEntry::setFlag(PageTableFlag flag, bool enabled)
+{
+    value &= ~(1 << flag);
+    value |= static_cast<size_t>(enabled) << flag;
+}
+
+bool PageDirectoryEntry::getFlag(PageTableFlag flag) const { return (value & 1 << flag) > 0; }
+
+void PageDirectoryEntry::setAddress(size_t address)
+{
+    address &= 0x000000FFFFFFFFFF;
+    value = (value & 0xFFF0000000000FFF) | address << 12;
+}
+
+size_t PageDirectoryEntry::getAddress() const { return (value & 0x000FFFFFFFFFF000) >> 12; }
+
 PageMapIndexer::PageMapIndexer(size_t virtualAddress)
 {
-    virtualAddress >>= 12;
-    pageIndex = virtualAddress & 0x1FF;
-    virtualAddress >>= 9;
-    pageTableIndex = virtualAddress & 0x1FF;
-    virtualAddress >>= 9;
-    pageDirTableIndex = virtualAddress & 0x1FF;
-    virtualAddress >>= 9;
-    pageDirPtrTableIndex = virtualAddress & 0x1FF;
+    pageIndex = virtualAddress >> 12 & 0x1FF;
+    pageTableIndex = virtualAddress >> 21 & 0x1FF;
+    pageDirTableIndex = virtualAddress >> 30 & 0x1FF;
+    pageDirPtrTableIndex = virtualAddress >> 39 & 0x1FF;
 }
 
 PageTableManager::PageTableManager(PageTable *address) : address(address) {}
@@ -165,52 +182,52 @@ void PageTableManager::mapMemory(void *virtualMemory, void *physicalMemory)
     PageDirectoryEntry pageDirectoryEntry = address->entries[indexer.pageDirPtrTableIndex];
     PageTable *pdpTable;
 
-    if (!pageDirectoryEntry.present)
+    if (!pageDirectoryEntry.getFlag(PageTableFlag::Present))
     {
         pdpTable = reinterpret_cast<PageTable *>(globalAllocator.requestPage());
         Memory::memset(pdpTable, 0, PAGE_SIZE);
 
-        pageDirectoryEntry.address = reinterpret_cast<size_t>(pdpTable) >> 12;
-        pageDirectoryEntry.present = true;
-        pageDirectoryEntry.writable = true;
+        pageDirectoryEntry.setAddress(reinterpret_cast<size_t>(pdpTable) >> 12);
+        pageDirectoryEntry.setFlag(PageTableFlag::Present, true);
+        pageDirectoryEntry.setFlag(PageTableFlag::Writable, true);
 
         address->entries[indexer.pageDirPtrTableIndex] = pageDirectoryEntry;
-    } else pdpTable = reinterpret_cast<PageTable *>(pageDirectoryEntry.address << 12);
+    } else pdpTable = reinterpret_cast<PageTable *>(pageDirectoryEntry.getAddress() << 12);
 
     pageDirectoryEntry = pdpTable->entries[indexer.pageDirTableIndex];
     PageTable *pdTable;
 
-    if (!pageDirectoryEntry.present)
+    if (!pageDirectoryEntry.getFlag(PageTableFlag::Present))
     {
         pdTable = reinterpret_cast<PageTable *>(globalAllocator.requestPage());
         Memory::memset(pdTable, 0, PAGE_SIZE);
 
-        pageDirectoryEntry.address = reinterpret_cast<size_t>(pdTable) >> 12;
-        pageDirectoryEntry.present = true;
-        pageDirectoryEntry.writable = true;
+        pageDirectoryEntry.setAddress(reinterpret_cast<size_t>(pdTable) >> 12);
+        pageDirectoryEntry.setFlag(PageTableFlag::Present, true);
+        pageDirectoryEntry.setFlag(PageTableFlag::Writable, true);
 
         pdpTable->entries[indexer.pageDirTableIndex] = pageDirectoryEntry;
-    } else pdTable = reinterpret_cast<PageTable *>(pageDirectoryEntry.address << 12);
+    } else pdTable = reinterpret_cast<PageTable *>(pageDirectoryEntry.getAddress() << 12);
 
     pageDirectoryEntry = pdTable->entries[indexer.pageTableIndex];
     PageTable *pTable;
 
-    if (!pageDirectoryEntry.present)
+    if (!pageDirectoryEntry.getFlag(PageTableFlag::Present))
     {
         pTable = reinterpret_cast<PageTable *>(globalAllocator.requestPage());
         Memory::memset(pTable, 0, PAGE_SIZE);
 
-        pageDirectoryEntry.address = reinterpret_cast<size_t>(pTable) >> 12;
-        pageDirectoryEntry.present = true;
-        pageDirectoryEntry.writable = true;
+        pageDirectoryEntry.setAddress(reinterpret_cast<size_t>(pTable) >> 12);
+        pageDirectoryEntry.setFlag(PageTableFlag::Present, true);
+        pageDirectoryEntry.setFlag(PageTableFlag::Writable, true);
 
         pdTable->entries[indexer.pageTableIndex] = pageDirectoryEntry;
-    } else pTable = reinterpret_cast<PageTable *>(pageDirectoryEntry.address << 12);
+    } else pTable = reinterpret_cast<PageTable *>(pageDirectoryEntry.getAddress() << 12);
 
     pageDirectoryEntry = pTable->entries[indexer.pageIndex];
-    pageDirectoryEntry.address = reinterpret_cast<size_t>(physicalMemory) >> 12;
-    pageDirectoryEntry.present = true;
-    pageDirectoryEntry.writable = true;
+    pageDirectoryEntry.setAddress(reinterpret_cast<size_t>(physicalMemory) >> 12);
+    pageDirectoryEntry.setFlag(PageTableFlag::Present, true);
+    pageDirectoryEntry.setFlag(PageTableFlag::Writable, true);
 
     pTable->entries[indexer.pageIndex] = pageDirectoryEntry;
 }

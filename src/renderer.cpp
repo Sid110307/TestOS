@@ -1,5 +1,6 @@
 #include "include/renderer.h"
 
+Renderer globalRenderer = Renderer(nullptr, nullptr);
 Renderer::Renderer(Framebuffer *framebuffer, PSF1Font *font)
         : cursorPosition({0, 0}), framebuffer(framebuffer), font(font) {}
 
@@ -23,7 +24,7 @@ void Renderer::putChar(char c, unsigned int color)
             cursorPosition.x = 0;
             break;
         case '\t':
-            cursorPosition.x += INDENT * 8;
+            cursorPosition.x += FRAMEBUFFER_INDENT * 8;
             break;
         case '\b':
             cursorPosition.x -= 8;

@@ -2,9 +2,6 @@
 
 #include "defs.h"
 
-#define PAGE_SIZE 4096
-#define PAGE_TABLE_SIZE 512
-
 struct MemoryDescriptor
 {
     unsigned int type;
@@ -41,7 +38,7 @@ public:
     void lockPage(void *address);
     void lockPages(void *address, size_t pageCount);
 
-    void *requestPage();
+    void *requestPage(bool clear = false);
 
     size_t getFreeRAM() const;
     size_t getUsedRAM() const;
@@ -61,19 +58,28 @@ private:
     static bool initialized;
 };
 
+enum PageTableFlag
+{
+    Present = 0,
+    Writable = 1,
+    UserAccessible = 2,
+    WriteThrough = 3,
+    CacheDisabled = 4,
+    Accessed = 5,
+    PageSize = 7,
+    Custom0 = 9,
+    Custom1 = 10,
+    Custom2 = 11,
+    NoExecute = 63
+};
+
 struct PageDirectoryEntry
 {
-    bool present: 1;
-    bool writable: 1;
-    bool userAccessible: 1;
-    bool writeThrough: 1;
-    bool cacheDisabled: 1;
-    bool accessed: 1;
-    bool ignored: 1;
-    bool pageSize: 1;
-    bool ignored2: 1;
-    unsigned char available: 3;
-    size_t address: 52;
+    size_t value;
+    void setFlag(PageTableFlag flag, bool enabled);
+    bool getFlag(PageTableFlag flag) const;
+    void setAddress(size_t address);
+    size_t getAddress() const;
 };
 
 struct PageTable
@@ -84,8 +90,8 @@ struct PageTable
 class PageMapIndexer
 {
 public:
-    size_t pageDirPtrTableIndex, pageDirTableIndex, pageTableIndex, pageIndex;
     explicit PageMapIndexer(size_t virtualAddress);
+    size_t pageDirPtrTableIndex, pageDirTableIndex, pageTableIndex, pageIndex;
 };
 
 class PageTableManager

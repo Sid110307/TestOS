@@ -1,11 +1,13 @@
 CC =			clang
 CXX =			clang++
-ARCH =			$(shell $(CC) -dumpmachine | cut -f1 -d-)
+ASM =			nasm
+LD =			ld
 
 SRC_DIR =		src
 DATA_DIR =		data
 BUILD_DIR =		bin
 
+ARCH =			$(shell $(CC) -dumpmachine | cut -f1 -d-)
 OUTPUT =		$(BUILD_DIR)/kernel.elf
 BOOTLOADER =	gnu-efi/$(ARCH)/bootloader/main.efi
 
@@ -20,9 +22,9 @@ C_SOURCES =		$(wildcard $(SRC_DIR)/*.c)
 CPP_SOURCES =	$(wildcard $(SRC_DIR)/*.cpp)
 FONTS =			$(wildcard $(SRC_DIR)/lib/*.psf)
 
-ASM_OBJECTS =	$(patsubst $(SRC_DIR)/asm/%.asm,$(BUILD_DIR)/%.o,$(ASM_SOURCES))
-C_OBJECTS =		$(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(C_SOURCES))
-CPP_OBJECTS =	$(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(CPP_SOURCES))
+ASM_OBJECTS =	$(patsubst $(SRC_DIR)/asm/%.asm,$(BUILD_DIR)/asm_%.o,$(ASM_SOURCES))
+C_OBJECTS =		$(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/c_%.o,$(C_SOURCES))
+CPP_OBJECTS =	$(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/cpp_%.o,$(CPP_SOURCES))
 
 .PHONY: all bootloader build iso clean super-clean
 all: bootloader $(OUTPUT) build iso
@@ -50,13 +52,13 @@ iso: $(OUTPUT)
 	cp $(FONTS) $(BUILD_DIR)/iso/
 	grub-mkrescue -o $(BUILD_DIR)/os.iso $(BUILD_DIR)/iso
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/asm/%.asm
-	nasm $(ASMFLAGS) $< -o $@
+$(BUILD_DIR)/asm_%.o: $(SRC_DIR)/asm/%.asm
+	$(ASM) $(ASMFLAGS) $< -o $@
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+$(BUILD_DIR)/c_%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
+$(BUILD_DIR)/cpp_%.o: $(SRC_DIR)/%.cpp
 	$(CXX) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/kernel.elf: $(ASM_OBJECTS) $(C_OBJECTS) $(CPP_OBJECTS)

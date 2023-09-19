@@ -10,7 +10,7 @@
 - [GNU Make](https://www.gnu.org/software/make/)
 - [QEMU](https://www.qemu.org/) (optional)
 
-## Getting Started
+## Quick Start
 
 - Clone the repository
 

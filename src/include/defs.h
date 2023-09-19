@@ -2,6 +2,14 @@
 
 typedef unsigned long long size_t;
 
+constexpr size_t FRAMEBUFFER_INDENT = 4;
+constexpr size_t PAGE_SIZE = 4096, PAGE_TABLE_SIZE = 512;
+constexpr size_t IDT_INTERRUPT_GATE = 0x8E, IDT_CALL_GATE = 0x8C, IDT_TRAP_GATE = 0x8F;
+constexpr size_t PIC1_COMMAND = 0x20, PIC1_DATA = 0x21, PIC2_COMMAND = 0xA0, PIC2_DATA = 0xA1, PIC_EOI = 0x20;
+constexpr size_t IRQ0 = 0x20, IRQ1 = 0x21, IRQ12 = 0x2C;
+constexpr size_t IDT_SIZE = 256;
+constexpr size_t KERNEL_CS = 0x08;
+
 enum Colors
 {
     Black = 0x000000,
@@ -31,37 +39,44 @@ struct Bitmap
 
     bool operator[](size_t index) const
     {
+        if (index > size * 8) return false;
+
         size_t byteIndex = index / 8;
         unsigned char bitIndex = index % 8, bitIndexer = 0B10000000 >> bitIndex;
 
         return (buffer[byteIndex] & bitIndexer) > 0;
     }
 
-    void set(size_t index, bool value) const
+    bool set(size_t index, bool value) const
     {
+        if (index > size * 8) return false;
+
         size_t byteIndex = index / 8;
         unsigned char bitIndex = index % 8, bitIndexer = 0B10000000 >> bitIndex;
 
-        value ? buffer[byteIndex] |= bitIndexer : buffer[byteIndex] &= ~bitIndexer;
-    }
+        if (value) buffer[byteIndex] |= bitIndexer;
+        else buffer[byteIndex] &= ~bitIndexer;
+
+        return value;
+    };
 };
 
 namespace Memory
 {
-    static inline void *memset(void *ptr, int value, size_t size)
+    [[maybe_unused]] static inline void *memset(void *ptr, int value, size_t size)
     {
         for (size_t i = 0; i < size; ++i) reinterpret_cast<unsigned char *>(ptr)[i] = value;
         return ptr;
     }
 
-    static inline void *memcpy(void *destination, const void *source, size_t size)
+    [[maybe_unused]] static inline void *memcpy(void *destination, const void *source, size_t size)
     {
         for (size_t i = 0; i < size; ++i)
             reinterpret_cast<unsigned char *>(destination)[i] = reinterpret_cast<const unsigned char *>(source)[i];
         return destination;
     }
 
-    static inline int memcmp(const void *a, const void *b, size_t size)
+    [[maybe_unused]] static inline int memcmp(const void *a, const void *b, size_t size)
     {
         for (size_t i = 0; i < size; ++i)
         {

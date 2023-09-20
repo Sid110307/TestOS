@@ -2,9 +2,9 @@
 
 void IDTEntry::setOffset(size_t offset)
 {
-    offsetLow = offset & 0xFFFF;
-    offsetMid = offset >> 16 & 0xFFFF;
-    offsetHigh = offset >> 32 & 0xFFFFFFFF;
+    offsetLow = static_cast<unsigned short>(offset & 0x000000000000FFFF);
+    offsetMid = static_cast<unsigned short>((offset & 0x00000000FFFF0000) >> 16);
+    offsetHigh = static_cast<unsigned int>((offset & 0xFFFFFFFF00000000) >> 32);
 }
 
 size_t IDTEntry::getOffset() const

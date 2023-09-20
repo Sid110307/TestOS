@@ -33,7 +33,7 @@ void registerHandler(unsigned char interrupt, void *handler)
     entry->setOffset(reinterpret_cast<size_t>(handler));
     entry->typeAttr = IDT_INTERRUPT_GATE;
     entry->selector = KERNEL_CS;
-};
+}
 
 void remapPIC()
 {
@@ -53,7 +53,7 @@ void remapPIC()
 
     PortIO::outPort(PIC1_DATA, masterMask);
     PortIO::outPort(PIC2_DATA, slaveMask);
-};
+}
 
 Kernel initKernel(BootInfo *bootInfo)
 {
@@ -123,7 +123,6 @@ Kernel initKernel(BootInfo *bootInfo)
 
     asm ("lidt %0" : : "m"(descriptor));
     remapPIC();
-    asm ("sti");
 
     return {globalRenderer, pageTableManager, globalAllocator, gdtDescriptor};
 }

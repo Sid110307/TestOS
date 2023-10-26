@@ -24,6 +24,7 @@ struct Kernel
 
 extern size_t _kernelStart, _kernelEnd;
 Renderer renderer(nullptr, nullptr);
+PageTableManager pageTableManager(nullptr);
 IDTDescriptor descriptor;
 
 void registerHandler(unsigned char interrupt, void *handler)
@@ -35,33 +36,33 @@ void registerHandler(unsigned char interrupt, void *handler)
     entry->selector = KERNEL_CS;
 }
 
-void remapPIC()
-{
-    auto masterMask = PortIO::inPort(PIC1_DATA), slaveMask = PortIO::inPort(PIC2_DATA);
-
-    PortIO::outPort(PIC1_COMMAND, ICW1_INIT | ICW1_ICW4);
-    PortIO::outPort(PIC2_COMMAND, ICW1_INIT | ICW1_ICW4);
-
-    PortIO::outPort(PIC1_DATA, 0x20);
-    PortIO::outPort(PIC2_DATA, 0x28);
-
-    PortIO::outPort(PIC1_DATA, 0x04);
-    PortIO::outPort(PIC2_DATA, 0x02);
-
-    PortIO::outPort(PIC1_DATA, ICW4_8086);
-    PortIO::outPort(PIC2_DATA, ICW4_8086);
-
-    PortIO::outPort(PIC1_DATA, masterMask);
-    PortIO::outPort(PIC2_DATA, slaveMask);
-}
+//void remapPIC()
+//{
+//    auto masterMask = PortIO::inPort(PIC1_DATA), slaveMask = PortIO::inPort(PIC2_DATA);
+//
+//    PortIO::outPort(PIC1_COMMAND, ICW1_INIT | ICW1_ICW4);
+//    PortIO::outPort(PIC2_COMMAND, ICW1_INIT | ICW1_ICW4);
+//
+//    PortIO::outPort(PIC1_DATA, 0x20);
+//    PortIO::outPort(PIC2_DATA, 0x28);
+//
+//    PortIO::outPort(PIC1_DATA, 0x04);
+//    PortIO::outPort(PIC2_DATA, 0x02);
+//
+//    PortIO::outPort(PIC1_DATA, ICW4_8086);
+//    PortIO::outPort(PIC2_DATA, ICW4_8086);
+//
+//    PortIO::outPort(PIC1_DATA, masterMask);
+//    PortIO::outPort(PIC2_DATA, slaveMask);
+//}
 
 Kernel initKernel(BootInfo *bootInfo)
 {
-    GDTDescriptor gdtDescriptor = {sizeof(GDT) - 1, reinterpret_cast<size_t>(&globalGDT)};
-    loadGDT(&gdtDescriptor);
-
     renderer = Renderer(bootInfo->framebuffer, bootInfo->font);
     globalRenderer = &renderer;
+
+    GDTDescriptor gdtDescriptor = {sizeof(GDT) - 1, reinterpret_cast<size_t>(&globalGDT)};
+    loadGDT(&gdtDescriptor);
 
     globalAllocator = PageFrameAllocator();
     globalAllocator.readMemoryMap(bootInfo->memoryMap, bootInfo->memoryMapSize, bootInfo->memoryMapDescriptorSize);
@@ -73,18 +74,18 @@ Kernel initKernel(BootInfo *bootInfo)
     auto *pageTable = reinterpret_cast<PageTable *>(globalAllocator.requestPage());
     Memory::memset(pageTable, 0, PAGE_SIZE);
 
-    PageTableManager pageTableManager(pageTable);
-    for (size_t i = 0; i < PageFrameAllocator::getMemorySize(bootInfo->memoryMap, bootInfo->memoryMapSize,
-                                                             bootInfo->memoryMapDescriptorSize) / PAGE_SIZE; ++i)
-        pageTableManager.mapMemory(reinterpret_cast<void *>(i * PAGE_SIZE), reinterpret_cast<void *>(i * PAGE_SIZE));
+    pageTableManager = PageTableManager(pageTable);
+    for (size_t i = 0; i < PageFrameAllocator::getMemorySize(
+            bootInfo->memoryMap, bootInfo->memoryMapSize / bootInfo->memoryMapDescriptorSize,
+            bootInfo->memoryMapDescriptorSize); i += PAGE_SIZE)
+        pageTableManager.mapMemory(reinterpret_cast<void *>(i), reinterpret_cast<void *>(i));
 
     auto framebufferBase = reinterpret_cast<size_t>(bootInfo->framebuffer->baseAddress);
     auto framebufferSize = bootInfo->framebuffer->bufferSize + PAGE_SIZE;
 
     globalAllocator.lockPages(reinterpret_cast<void *>(framebufferBase), framebufferSize / PAGE_SIZE + 1);
-    for (size_t i = 0; i < framebufferSize; i += PAGE_SIZE)
-        pageTableManager.mapMemory(reinterpret_cast<void *>(framebufferBase + i),
-                                   reinterpret_cast<void *>(framebufferBase + i));
+    for (size_t i = framebufferBase; i < framebufferBase + framebufferSize; i += PAGE_SIZE)
+        pageTableManager.mapMemory(reinterpret_cast<void *>(i), reinterpret_cast<void *>(i));
 
     asm ("mov %0, %%cr3" : : "r"(pageTable));
     Memory::memset(bootInfo->framebuffer->baseAddress, 0, bootInfo->framebuffer->bufferSize);
@@ -122,7 +123,7 @@ Kernel initKernel(BootInfo *bootInfo)
 //    registerHandler(0x2C, mouseHandler);
 
     asm ("lidt %0" : : "m"(descriptor));
-    remapPIC();
+//    remapPIC();
 
     return {globalRenderer, pageTableManager, globalAllocator, gdtDescriptor};
 }

@@ -2,6 +2,7 @@
 
 typedef unsigned long long size_t;
 
+constexpr double PI = 3.14159265358979323846;
 constexpr size_t FRAMEBUFFER_INDENT = 4;
 constexpr size_t PAGE_SIZE = 4096, PAGE_TABLE_SIZE = 512;
 constexpr size_t IDT_INTERRUPT_GATE = 0x8E, IDT_CALL_GATE = 0x8C, IDT_TRAP_GATE = 0x8F;
